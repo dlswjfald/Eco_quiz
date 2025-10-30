@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>간단 일기 블로그</title>
+  <style>
+    /* ========== Reset & Base ========== */
+    :root{
+      --bg: #0f1721;
+      --card: #0b1220;
+      --muted: #98a0ad;
+      --accent: #7dd3fc;
+      --accent-2: #60a5fa;
+      --glass: rgba(255,255,255,0.04);
+      --radius: 12px;
+      --max-width: 980px;
+      --shadow: 0 6px 20px rgba(2,6,23,0.6);
+      font-family: Inter, "Noto Sans KR", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing: border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background: linear-gradient(180deg, #071022 0%, #08132a 100%);
+      color:#e6eef8;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      display:flex;
+      align-items:flex-start;
+      justify-content:center;
+      padding:36px 20px;
+      gap:20px;
+    }
+
+    /* ========== Layout ========== */
+    .wrap{
+      width:100%;
+      max-width:var(--max-width);
+      display:grid;
+      grid-template-columns: 360px 1fr;
+      gap:24px;
+      align-items:start;
+    }
+    @media (max-width:900px){
+      .wrap{grid-template-columns:1fr; padding-bottom:40px}
+    }
+
+    /* ========== Sidebar (Composer & Search) ========== */
+    .sidebar{
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:var(--radius);
+      padding:18px;
+      box-shadow:var(--shadow);
+      position:sticky;
+      top:24px;
+      height:fit-content;
+    }
+    .brand{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      margin-bottom:12px;
+    }
+    .logo{
+      width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));
+      display:flex;align-items:center;justify-content:center;font-weight:700;color:#012238;
+      box-shadow: 0 4px 14px rgba(45,212,255,0.08);
+    }
+    h1{font-size:16px;margin:0}
+    p.lead{margin:0;color:var(--muted);font-size:13px}
+
+    label{display:block;font-size:12px;color:var(--muted);margin-top:12px;margin-bottom:6px}
+    input[type="text"], textarea, select{
+      width:100%;
+      background:var(--glass);
+      border:1px solid rgba(255,255,255,0.04);
+      color:inherit;
+      padding:10px 12px;
+      border-radius:10px;
+      font-size:14px;
+      outline:none;
+      resize:vertical;
+    }
+    textarea{min-height:140px; max-height:320px}
+
+    .row{display:flex;gap:8px}
+    .btn{
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      padding:10px 12px;border-radius:10px;border:0;cursor:pointer;font-weight:600;
+      background:linear-gradient(90deg,var(--accent),var(--accent-2));
+      color:#012238;
+      box-shadow: 0 6px 18px rgba(96,165,250,0.12);
+    }
+    .btn.secondary{
+      background:transparent;color:var(--accent);
+      border:1px solid rgba(125,211,252,0.12);
+      box-shadow:none;font-weight:600;
+    }
+    .muted{color:var(--muted);font-size:13px;margin-top:8px}
+
+    /* ========== Main content (posts) ========== */
+    .main{
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:var(--radius);
+      padding:18px;
+      box-shadow:var(--shadow);
+      min-height:420px;
+    }
+    .controls{
+      display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;
+    }
+    .search{
+      flex:1; min-width:180px;
+    }
+    .posts{
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap:12px;
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));
+      border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.03);
+    }
+    .card h3{margin:0 0 6px 0;font-size:15px}
+    .meta{font-size:12px;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+    .excerpt{font-size:13px;color:#cfe7ff;opacity:0.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .card .actions{display:flex;gap:8px;margin-top:8px}
+    .small{padding:6px 8px;font-size:13px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.03);cursor:pointer;color:var(--muted)}
+
+    /* ========== Modal / Preview ========== */
+    .modal-backdrop{
+      position:fixed;inset:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;padding:20px;z-index:50;
+    }
+    .modal{width:100%;max-width:900px;background:#051021;border-radius:12px;padding:18px;box-shadow:0 12px 48px rgba(2,6,23,0.8)}
+    .modal .content{display:grid;grid-template-columns:1fr 360px;gap:12px}
+    @media (max-width:900px){ .modal .content{grid-template-columns:1fr} }
+
+    .preview{
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:10px;padding:12px;min-height:220px;overflow:auto;
+    }
+    .tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .tag{font-size:12px;background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:999px}
+
+    footer.note{margin-top:14px;font-size:12px;color:var(--muted);text-align:center}
+    /* subtle empty state */
+    .empty{padding:28px;border:2px dashed rgba(255,255,255,0.03);border-radius:10px;text-align:center;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap" role="application" aria-label="일기 블로그 웹앱">
+    <!-- SIDEBAR: 작성 영역 -->
+    <aside class="sidebar" aria-labelledby="composer-title">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">D</div>
+        <div>
+          <h1 id="composer-title">내 일기장</h1>
+          <p class="lead">간단하게 쓰고 저장해요 — 로컬에만 저장됩니다.</p>
+        </div>
+      </div>
+
+      <label for="title">제목</label>
+      <input id="title" type="text" placeholder="오늘의 제목을 입력하세요" autocomplete="off" />
+
+      <label for="tags">태그 (쉼표로 구분)</label>
+      <input id="tags" type="text" placeholder="예: 일상,학교,감정" autocomplete="off" />
+
+      <label for="content">본문</label>
+      <textarea id="content" placeholder="오늘 있었던 일을 자유롭게 적어보세요..."></textarea>
+
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button id="saveBtn" class="btn">저장</button>
+        <button id="clearBtn" class="btn secondary" type="button">초기화</button>
+      </div>
+
+      <p class="muted" id="charCount">글자수: 0</p>
+
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button id="exportBtn" class="btn secondary">내보내기 (JSON)</button>
+        <button id="importBtn" class="btn secondary">불러오기 (JSON)</button>
+      </div>
+
+      <p class="muted" style="margin-top:12px">팁: 저장된 데이터는 브라우저 로컬스토리지에 보관됩니다. 다른 기기와 동기화하려면 내보내기/불러오기를 사용하세요.</p>
+    </aside>
+
+    <!-- MAIN: 리스트 및 검색 -->
+    <main class="main" aria-labelledby="posts-title">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2 id="posts-title" style="margin:0">게시물</h2>
+        <div class="muted" id="countAll">총 0개</div>
+      </div>
+
+      <div class="controls">
+        <input id="search" class="search" type="text" placeholder="검색 (제목, 내용, 태그)" aria-label="검색" />
+        <select id="sort">
+          <option value="new">최신순</option>
+          <option value="old">오래된순</option>
+          <option value="title">제목순</option>
+        </select>
+        <button id="newBtn" class="btn secondary">새로쓰기</button>
+      </div>
+
+      <div id="postsContainer" class="posts" aria-live="polite"></div>
+
+      <div id="emptyState" class="empty" style="display:none;margin-top:12px">
+        아직 작성한 게시물이 없어요. 왼쪽에서 새 글을 작성해 보세요 ✍️
+      </div>
+
+      <footer class="note">간단한 개인 일기/블로그 — 저장은 로컬에서만 이루어집니다.</footer>
+    </main>
+  </div>
+
+  <!-- MODAL: 보기/편집 -->
+  <div id="modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal" role="document">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong id="modalTitle">미리보기</strong>
+        <div>
+          <button id="modalClose" class="small">닫기</button>
+        </div>
+      </div>
+
+      <div class="content">
+        <div>
+          <div class="preview" id="previewArea" aria-live="polite"></div>
+        </div>
+        <aside style="min-width:220px;">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="card" style="padding:10px;">
+              <div class="meta">
+                <div id="viewDate">날짜</div>
+                <div id="viewTags"></div>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:6px">
+                <button id="editBtn" class="btn secondary">편집</button>
+                <button id="deleteBtn" class="btn secondary">삭제</button>
+                <button id="closeBtn" class="small">닫기</button>
+              </div>
+            </div>
+
+            <div class="card" style="padding:10px;">
+              <div style="font-size:13px;color:var(--muted)">작업</div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button id="copyBtn" class="small">클립보드 복사</button>
+                <button id="exportSingleBtn" class="small">JSON 저장</button>
+              </div>
+            </div>
+
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ======== 간단한 일기 블로그 스크립트 ========
+    // 데이터 구조: {id, title, content, tags:[], createdAt, updatedAt}
+
+    const LS_KEY = 'diaryPosts_v1';
+    let posts = [];
+    let editingId = null;
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+    // 요소
+    const titleInput = $('#title');
+    const tagsInput = $('#tags');
+    const contentInput = $('#content');
+    const saveBtn = $('#saveBtn');
+    const clearBtn = $('#clearBtn');
+    const exportBtn = $('#exportBtn');
+    const importBtn = $('#importBtn');
+    const charCount = $('#charCount');
+    const postsContainer = $('#postsContainer');
+    const emptyState = $('#emptyState');
+    const countAll = $('#countAll');
+    const searchInput = $('#search');
+    const sortSelect = $('#sort');
+    const newBtn = $('#newBtn');
+
+    const modal = $('#modal');
+    const modalClose = $('#modalClose');
+    const closeBtn = $('#closeBtn');
+    const previewArea = $('#previewArea');
+    const viewDate = $('#viewDate');
+    const viewTags = $('#viewTags');
+    const editBtn = $('#editBtn');
+    const deleteBtn = $('#deleteBtn');
+    const copyBtn = $('#copyBtn');
+    const exportSingleBtn = $('#exportSingleBtn');
+
+    // --- 초기화 ---
+    function loadPosts(){
+      try{
+        const raw = localStorage.getItem(LS_KEY);
+        posts = raw ? JSON.parse(raw) : [];
+      }catch(e){
+        console.error('loadPosts error', e);
+        posts = [];
+      }
+      renderList();
+    }
+
+    function saveAll(){
+      localStorage.setItem(LS_KEY, JSON.stringify(posts));
+      renderList();
+    }
+
+    function makeId(){
+      return 'p_' + Date.now().toString(36) + '_' + Math.floor(Math.random()*9000+1000).toString(36);
+    }
+
+    function nowISO(){
+      return new Date().toISOString();
+    }
+
+    // --- UI 동작 ---
+    function resetComposer(){
+      titleInput.value = '';
+      tagsInput.value = '';
+      contentInput.value = '';
+      editingId = null;
+      updateCharCount();
+    }
+
+    function updateCharCount(){
+      charCount.textContent = '글자수: ' + contentInput.value.length;
+    }
+
+    contentInput.addEventListener('input', updateCharCount);
+
+    clearBtn.addEventListener('click', () => {
+      if(confirm('작성 중인 내용을 초기화하시겠어요?')){
+        resetComposer();
+      }
+    });
+
+    saveBtn.addEventListener('click', () => {
+      const title = titleInput.value.trim() || '(제목 없음)';
+      const content = contentInput.value.trim();
+      const tags = tagsInput.value.split(',').map(s=>s.trim()).filter(Boolean);
+
+      if(!content){
+        if(!confirm('본문이 비어있습니다. 그래도 저장할까요?')) return;
+      }
+
+      if(editingId){
+        const idx = posts.findIndex(p => p.id === editingId);
+        if(idx >= 0){
+          posts[idx].title = title;
+          posts[idx].content = content;
+          posts[idx].tags = tags;
+          posts[idx].updatedAt = nowISO();
+        }
+      } else {
+        const newPost = {
+          id: makeId(),
+          title, content, tags,
+          createdAt: nowISO(),
+          updatedAt: nowISO()
+        };
+        posts.unshift(newPost);
+      }
+
+      saveAll();
+      resetComposer();
+      alert('저장되었습니다.');
+    });
+
+    // 새로쓰기 버튼
+    newBtn.addEventListener('click', () => {
+      resetComposer();
+      window.scrollTo({top:0,behavior:'smooth'});
+      titleInput.focus();
+    });
+
+    // 검색/정렬
+    searchInput.addEventListener('input', renderList);
+    sortSelect.addEventListener('change', renderList);
+
+    // 렌더링
+    function renderList(){
+      const q = searchInput.value.trim().toLowerCase();
+      let list = posts.slice();
+
+      if(q){
+        list = list.filter(p => (p.title + ' ' + p.content + ' ' + (p.tags||[]).join(' ')).toLowerCase().includes(q));
+      }
+
+      const sortMode = sortSelect.value;
+      if(sortMode === 'new') list.sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
+      else if(sortMode === 'old') list.sort((a,b)=> new Date(a.createdAt) - new Date(b.createdAt));
+      else if(sortMode === 'title') list.sort((a,b)=> a.title.localeCompare(b.title));
+
+      postsContainer.innerHTML = '';
+      if(list.length === 0){
+        emptyState.style.display = 'block';
+      } else {
+        emptyState.style.display = 'none';
+      }
+
+      list.forEach(p => {
+        const el = document.createElement('article');
+        el.className = 'card';
+        el.setAttribute('data-id', p.id);
+        el.innerHTML = `
+          <h3 title="${escapeHtml(p.title)}">${escapeHtml(p.title)}</h3>
+          <div class="meta">
+            <div>${formatDate(p.createdAt)}</div>
+            <div style="text-align:right">${p.tags ? p.tags.map(t=>'<span class="tag">'+escapeHtml(t)+'</span>').join(' ') : ''}</div>
+          </div>
+          <div class="excerpt">${escapeHtml(p.content || '').replace(/\\n/g,' ')[0] ? escapeHtml(p.content || '').slice(0,120) : '<i style="color:#93a3b8">본문 없음</i>'}</div>
+          <div class="actions">
+            <button class="small viewBtn">보기</button>
+            <button class="small editBtn">편집</button>
+            <button class="small deleteBtn">삭제</button>
+          </div>
+        `;
+        postsContainer.appendChild(el);
+      });
+
+      countAll.textContent = `총 ${list.length}개`;
+    }
+
+    // event delegation for list actions
+    postsContainer.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button');
+      if(!btn) return;
+      const card = ev.target.closest('.card');
+      if(!card) return;
+      const id = card.getAttribute('data-id');
+      if(btn.classList.contains('viewBtn')){
+        openModalWith(id);
+      } else if(btn.classList.contains('editBtn')){
+        startEdit(id);
+      } else if(btn.classList.contains('deleteBtn')){
+        doDelete(id);
+      }
+    });
+
+    function startEdit(id){
+      const p = posts.find(x => x.id === id);
+      if(!p) return alert('게시물을 찾을 수 없습니다.');
+      editingId = p.id;
+      titleInput.value = p.title;
+      tagsInput.value = (p.tags||[]).join(', ');
+      contentInput.value = p.content || '';
+      updateCharCount();
+      window.scrollTo({top:0,behavior:'smooth'});
+      titleInput.focus();
+    }
+
+    function doDelete(id){
+      if(!confirm('정말 삭제하시겠어요? 이 작업은 되돌릴 수 없습니다.')) return;
+      posts = posts.filter(p=>p.id !== id);
+      saveAll();
+      alert('삭제되었습니다.');
+    }
+
+    // Modal: view single post
+    function openModalWith(id){
+      const p = posts.find(x=>x.id===id);
+      if(!p) return;
+      modal.style.display = 'flex';
+      modal.setAttribute('aria-hidden','false');
+      modal.dataset.current = id;
+      $('#modalTitle').textContent = p.title;
+      previewArea.innerHTML = renderMarkdownSafe(p.content || '');
+      viewDate.textContent = formatDateTime(p.createdAt);
+      viewTags.innerHTML = (p.tags||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join(' ');
+    }
+
+    function closeModal(){
+      modal.style.display = 'none';
+      modal.setAttribute('aria-hidden','true');
+      modal.dataset.current = '';
+    }
+
+    modalClose.addEventListener('click', closeModal);
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (ev)=> {
+      if(ev.target === modal) closeModal();
+    });
+
+    editBtn.addEventListener('click', ()=>{
+      const id = modal.dataset.current;
+      closeModal();
+      startEdit(id);
+    });
+
+    deleteBtn.addEventListener('click', ()=>{
+      const id = modal.dataset.current;
+      if(confirm('정말 삭제하시겠어요?')){
+        posts = posts.filter(p=>p.id !== id);
+        saveAll();
+        closeModal();
+        alert('삭제되었습니다.');
+      }
+    });
+
+    copyBtn.addEventListener('click', ()=>{
+      const id = modal.dataset.current;
+      const p = posts.find(x=>x.id===id);
+      if(!p) return;
+      const text = `${p.title}\\n\\n${p.content}`;
+      navigator.clipboard.writeText(text).then(()=> {
+        alert('내용이 복사되었습니다.');
+      }).catch(()=> alert('복사에 실패했습니다.'));
+    });
+
+    exportSingleBtn.addEventListener('click', ()=>{
+      const id = modal.dataset.current;
+      const p = posts.find(x=>x.id===id);
+      if(!p) return;
+      downloadJSON(p, (p.title || 'post') + '.json');
+    });
+
+    // 전체 내보내기/불러오기
+    exportBtn.addEventListener('click', ()=>{
+      downloadJSON(posts, 'diary_posts.json');
+    });
+
+    importBtn.addEventListener('click', async ()=>{
+      const file = await pickJsonFile();
+      if(!file) return;
+      try{
+        const text = await file.text();
+        const imported = JSON.parse(text);
+        if(!Array.isArray(imported)){
+          if(confirm('파일이 단일 게시물처럼 보입니다. 현재 저장소에 추가하시겠어요?')){
+            posts.unshift(imported);
+          } else {
+            return;
+          }
+        } else {
+          // 병합: 기존 id와 충돌시 새 id 할당
+          const existingIds = new Set(posts.map(p=>p.id));
+          imported.forEach(item=>{
+            if(!item.id || existingIds.has(item.id)){
+              item.id = makeId();
+            }
+            posts.unshift(item);
+          });
+        }
+        saveAll();
+        alert('불러오기 완료되었습니다.');
+      }catch(e){
+        console.error(e);
+        alert('불러오기에 실패했습니다. 올바른 JSON 파일인지 확인하세요.');
+      }
+    });
+
+    // 유틸리티
+    function formatDate(iso){
+      try{
+        const d = new Date(iso);
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+      }catch(e){return ''}
+    }
+    function formatDateTime(iso){
+      try{
+        const d = new Date(iso);
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      }catch(e){return ''}
+    }
+    function pad(n){return String(n).padStart(2,'0')}
+
+    function escapeHtml(s){
+      if(!s) return '';
+      return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+    }
+
+    function renderMarkdownSafe(text){
+      // 아주 기본적인 마크다운 지원: 헤더(#), 굵게(**), 기울임(*), 코드(`)
+      if(!text) return '<i style="color:#93a3b8">본문 없음</i>';
+      let out = escapeHtml(text);
+      // 코드 블록 (``` ... ```) 지원: 단순 변환
+      out = out.replace(/```([\\s\\S]*?)```/g, (m,code) => `<pre style="background:#021224;padding:8px;border-radius:8px;overflow:auto">${escapeHtml(code)}</pre>`);
+      // inline code
+      out = out.replace(/`([^`]+)`/g, (m, code) => `<code style="background:rgba(255,255,255,0.02);padding:2px 6px;border-radius:6px">${escapeHtml(code)}</code>`);
+      // bold
+      out = out.replace(/\\*\\*([^*]+)\\*\\*/g, '<strong>$1</strong>');
+      // italic
+      out = out.replace(/\\*([^*]+)\\*/g, '<em>$1</em>');
+      // headers
+      out = out.replace(/^###### (.*$)/gim, '<h6>$1</h6>');
+      out = out.replace(/^##### (.*$)/gim, '<h5>$1</h5>');
+      out = out.replace(/^#### (.*$)/gim, '<h4>$1</h4>');
+      out = out.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+      out = out.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+      out = out.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+      // paragraphs / line breaks
+      out = out.split('\\n').map(line => line.trim() ? `<p style="margin:6px 0">${line}</p>` : '<br/>').join('');
+      return out;
+    }
+
+    function downloadJSON(obj, filename){
+      const blob = new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function pickJsonFile(){
+      // 브라우저 파일 선택 대화
+      return new Promise((resolve)=>{
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json,application/json';
+        input.onchange = ()=> {
+          const file = input.files[0];
+          resolve(file);
+        };
+        input.click();
+      });
+    }
+
+    // 초기 로드
+    loadPosts();
+
+    // 키보드 단축 (Ctrl+Enter 저장)
+    window.addEventListener('keydown', (e)=>{
+      if((e.ctrlKey || e.metaKey) && e.key === 'Enter'){
+        saveBtn.click();
+      }
+    });
+
+    // 보호: unload 시 로컬저장 자동 (안전)
+    window.addEventListener('beforeunload', ()=> {
+      localStorage.setItem(LS_KEY, JSON.stringify(posts));
+    });
+
+    // 기본 escape: 모달 닫기 ESC
+    window.addEventListener('keydown', (e) => {
+      if(e.key === 'Escape' && modal.style.display === 'flex') closeModal();
+    });
+
+    // 아주 간단한 샘플 (앱 첫 실행시 빈 상태면 샘플 하나 추가)
+    (function seedIfEmpty(){
+      if(posts.length === 0 && !localStorage.getItem(LS_KEY + '_seeded')){
+        posts.push({
+          id: makeId(),
+          title: '첫 일기 — 환영합니다',
+          content: '이곳은 당신의 개인 일기장입니다. 좌측에서 새 글을 작성하고 저장해보세요.\\n\\n간단한 마크다운(#, **굵게**, *기울임*, `코드`)을 지원해요.',
+          tags: ['환영','예시'],
+          createdAt: nowISO(),
+          updatedAt: nowISO()
+        });
+        localStorage.setItem(LS_KEY + '_seeded', '1');
+        saveAll();
+      }
+    })();
+  </script>
+</body>
+</html>
